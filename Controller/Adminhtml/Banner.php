@@ -1,75 +1,91 @@
 <?php
 /**
- * Mageplaza_BetterSlider extension
- *                     NOTICE OF LICENSE
- * 
- *                     This source file is subject to the Mageplaza License
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
+ * Mageplaza
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Mageplaza.com license that is
+ * available through the world-wide-web at this URL:
  * https://www.mageplaza.com/LICENSE.txt
- * 
- *                     @category  Mageplaza
- *                     @package   Mageplaza_BetterSlider
- *                     @copyright Copyright (c) 2016
- *                     @license   https://www.mageplaza.com/LICENSE.txt
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade this extension to newer
+ * version in the future.
+ *
+ * @category    Mageplaza
+ * @package     Mageplaza_BannerSlider
+ * @copyright   Copyright (c) Mageplaza (https://www.mageplaza.com/)
+ * @license     https://www.mageplaza.com/LICENSE.txt
  */
-namespace Mageplaza\BetterSlider\Controller\Adminhtml;
 
-abstract class Banner extends \Magento\Backend\App\Action
+namespace Mageplaza\BannerSlider\Controller\Adminhtml;
+
+use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
+use Magento\Backend\Model\View\Result\RedirectFactory;
+use Magento\Framework\Registry;
+use Mageplaza\BannerSlider\Model\BannerFactory;
+
+/**
+ * Class Banner
+ * @package Mageplaza\BannerSlider\Controller\Adminhtml
+ */
+abstract class Banner extends Action
 {
     /**
      * Banner Factory
-     * 
-     * @var \Mageplaza\BetterSlider\Model\BannerFactory
+     *
+     * @var BannerFactory
      */
     protected $bannerFactory;
 
     /**
      * Core registry
-     * 
-     * @var \Magento\Framework\Registry
+     *
+     * @var Registry
      */
     protected $coreRegistry;
 
     /**
      * Result redirect factory
-     * 
-     * @var \Magento\Backend\Model\View\Result\RedirectFactory
+     *
+     * @var RedirectFactory
      */
 
     /**
      * constructor
-     * 
-     * @param \Mageplaza\BetterSlider\Model\BannerFactory $bannerFactory
-     * @param \Magento\Framework\Registry $coreRegistry
-     * @param \Magento\Backend\Model\View\Result\RedirectFactory $resultRedirectFactory
-     * @param \Magento\Backend\App\Action\Context $context
+     *
+     * @param BannerFactory $bannerFactory
+     * @param Registry $coreRegistry
+     * @param Context $context
      */
     public function __construct(
-        \Mageplaza\BetterSlider\Model\BannerFactory $bannerFactory,
-        \Magento\Framework\Registry $coreRegistry,
-        \Magento\Backend\App\Action\Context $context
-    )
-    {
-        $this->bannerFactory         = $bannerFactory;
-        $this->coreRegistry          = $coreRegistry;
+        BannerFactory $bannerFactory,
+        Registry $coreRegistry,
+        Context $context
+    ) {
+        $this->bannerFactory = $bannerFactory;
+        $this->coreRegistry = $coreRegistry;
+
         parent::__construct($context);
     }
 
     /**
      * Init Banner
      *
-     * @return \Mageplaza\BetterSlider\Model\Banner
+     * @return \Mageplaza\BannerSlider\Model\Banner
      */
     protected function initBanner()
     {
-        $bannerId  = (int) $this->getRequest()->getParam('banner_id');
-        /** @var \Mageplaza\BetterSlider\Model\Banner $banner */
-        $banner    = $this->bannerFactory->create();
+        $bannerId = (int)$this->getRequest()->getParam('banner_id');
+        /** @var \Mageplaza\BannerSlider\Model\Banner $banner */
+        $banner = $this->bannerFactory->create();
         if ($bannerId) {
             $banner->load($bannerId);
         }
-        $this->coreRegistry->register('mageplaza_betterslider_banner', $banner);
+        $this->coreRegistry->register('mpbannerslider_banner', $banner);
+
         return $banner;
     }
 }

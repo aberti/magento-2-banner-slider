@@ -1,105 +1,124 @@
 <?php
 /**
- * Mageplaza_BetterSlider extension
- *                     NOTICE OF LICENSE
- * 
- *                     This source file is subject to the Mageplaza License
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
+ * Mageplaza
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Mageplaza.com license that is
+ * available through the world-wide-web at this URL:
  * https://www.mageplaza.com/LICENSE.txt
- * 
- *                     @category  Mageplaza
- *                     @package   Mageplaza_BetterSlider
- *                     @copyright Copyright (c) 2016
- *                     @license   https://www.mageplaza.com/LICENSE.txt
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade this extension to newer
+ * version in the future.
+ *
+ * @category    Mageplaza
+ * @package     Mageplaza_BannerSlider
+ * @copyright   Copyright (c) Mageplaza (https://www.mageplaza.com/)
+ * @license     https://www.mageplaza.com/LICENSE.txt
  */
-namespace Mageplaza\BetterSlider\Controller\Adminhtml\Slider;
 
-abstract class InlineEdit extends \Magento\Backend\App\Action
+namespace Mageplaza\BannerSlider\Controller\Adminhtml\Slider;
+
+use Exception;
+use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
+use Magento\Framework\Controller\Result\Json;
+use Magento\Framework\Controller\Result\JsonFactory;
+use Magento\Framework\Controller\ResultInterface;
+use Magento\Framework\Exception\LocalizedException;
+use Mageplaza\BannerSlider\Model\Slider;
+use Mageplaza\BannerSlider\Model\SliderFactory;
+use RuntimeException;
+
+/**
+ * Class InlineEdit
+ * @package Mageplaza\BannerSlider\Controller\Adminhtml\Slider
+ */
+class InlineEdit extends Action
 {
     /**
      * JSON Factory
-     * 
-     * @var \Magento\Framework\Controller\Result\JsonFactory
+     *
+     * @var JsonFactory
      */
     protected $jsonFactory;
 
     /**
-     * Slider Factory
-     * 
-     * @var \Mageplaza\BetterSlider\Model\SliderFactory
+     * Banner Factory
+     *
+     * @var SliderFactory
      */
     protected $sliderFactory;
 
     /**
-     * constructor
-     * 
-     * @param \Magento\Framework\Controller\Result\JsonFactory $jsonFactory
-     * @param \Mageplaza\BetterSlider\Model\SliderFactory $sliderFactory
-     * @param \Magento\Backend\App\Action\Context $context
+     * InlineEdit constructor.
+     * @param JsonFactory $jsonFactory
+     * @param SliderFactory $sliderFactory
+     * @param Context $context
      */
     public function __construct(
-        \Magento\Framework\Controller\Result\JsonFactory $jsonFactory,
-        \Mageplaza\BetterSlider\Model\SliderFactory $sliderFactory,
-        \Magento\Backend\App\Action\Context $context
-    )
-    {
-        $this->jsonFactory   = $jsonFactory;
+        JsonFactory $jsonFactory,
+        SliderFactory $sliderFactory,
+        Context $context
+    ) {
+        $this->jsonFactory = $jsonFactory;
         $this->sliderFactory = $sliderFactory;
+
         parent::__construct($context);
     }
 
     /**
-     * @return \Magento\Framework\Controller\ResultInterface
+     * @return ResultInterface
      */
     public function execute()
     {
-        /** @var \Magento\Framework\Controller\Result\Json $resultJson */
+        /** @var Json $resultJson */
         $resultJson = $this->jsonFactory->create();
         $error = false;
         $messages = [];
         $postItems = $this->getRequest()->getParam('items', []);
-        if (!($this->getRequest()->getParam('isAjax') && count($postItems))) {
+        if (!(!empty($postItems) && $this->getRequest()->getParam('isAjax'))) {
             return $resultJson->setData([
                 'messages' => [__('Please correct the data sent.')],
-                'error' => true,
+                'error'    => true,
             ]);
         }
         foreach (array_keys($postItems) as $sliderId) {
-            /** @var \Mageplaza\BetterSlider\Model\Slider $slider */
+            /** @var Slider $slider */
             $slider = $this->sliderFactory->create()->load($sliderId);
             try {
-                $sliderData = $postItems[$sliderId];//todo: handle dates
+                $sliderData = $postItems[$sliderId];
                 $slider->addData($sliderData);
                 $slider->save();
-            } catch (\Magento\Framework\Exception\LocalizedException $e) {
+            } catch (RuntimeException $e) {
                 $messages[] = $this->getErrorWithSliderId($slider, $e->getMessage());
                 $error = true;
-            } catch (\RuntimeException $e) {
-                $messages[] = $this->getErrorWithSliderId($slider, $e->getMessage());
-                $error = true;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $messages[] = $this->getErrorWithSliderId(
                     $slider,
-                    __('Something went wrong while saving the Slider.')
+                    __('Something went wrong while saving the Banner.')
                 );
                 $error = true;
             }
         }
+
         return $resultJson->setData([
             'messages' => $messages,
-            'error' => $error
+            'error'    => $error
         ]);
     }
 
     /**
-     * Add Slider id to error message
+     * Add slider id to error message
      *
-     * @param \Mageplaza\BetterSlider\Model\Slider $slider
-     * @param string $errorText
+     * @param Slider $slider
+     * @param $errorText
+     *
      * @return string
      */
-    protected function getErrorWithSliderId(\Mageplaza\BetterSlider\Model\Slider $slider, $errorText)
+    protected function getErrorWithSliderId(Slider $slider, $errorText)
     {
         return '[Slider ID: ' . $slider->getId() . '] ' . $errorText;
     }

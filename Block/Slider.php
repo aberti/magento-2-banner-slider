@@ -1,60 +1,145 @@
 <?php
 /**
- * Mageplaza_BetterSlider extension
+ * Mageplaza
  *
  * NOTICE OF LICENSE
  *
- * This source file is subject to the MIT License
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://opensource.org/licenses/mit-license.php
+ * This source file is subject to the Mageplaza.com license that is
+ * available through the world-wide-web at this URL:
+ * https://www.mageplaza.com/LICENSE.txt
  *
- * @category       Mageplaza
- * @package        Mageplaza_BetterSlider
- * @copyright      Copyright (c) 2016
- * @author         Sam
- * @license        Mageplaza License
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade this extension to newer
+ * version in the future.
+ *
+ * @category    Mageplaza
+ * @package     Mageplaza_BannerSlider
+ * @copyright   Copyright (c) Mageplaza (https://www.mageplaza.com/)
+ * @license     https://www.mageplaza.com/LICENSE.txt
  */
 
+namespace Mageplaza\BannerSlider\Block;
 
-namespace Mageplaza\BetterSlider\Block;
+use Exception;
+use Magento\Cms\Model\Template\FilterProvider;
+use Magento\Customer\Api\CustomerRepositoryInterface;
+use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
+use Magento\Framework\Stdlib\DateTime\DateTime;
+use Magento\Framework\View\Element\Template;
+use Magento\Store\Model\StoreManagerInterface;
+use Mageplaza\BannerSlider\Helper\Data as bannerHelper;
 
-use \Magento\Framework\View\Element\Template\Context;
-use Mageplaza\BetterSlider\Model\SliderFactory as SliderModelFactory;
-use Mageplaza\BetterSlider\Model\BannerFactory as BannerModelFactory;
-
-
-class Slider extends \Magento\Framework\View\Element\Template
+/**
+ * Class Slider
+ * @package Mageplaza\BannerSlider\Block
+ */
+class Slider extends Template
 {
-	protected $sliderFactory;
-	protected $bannerFactory;
+    /**
+     * @type bannerHelper
+     */
+    public $helperData;
 
-	public function __construct(
-		Context $context,
-		SliderModelFactory $sliderFactory,
-		BannerModelFactory $bannerFactory
-	)
-	{
-		$this->sliderFactory = $sliderFactory;
-		$this->bannerFactory = $bannerFactory;
-		parent::__construct($context);
-	}
+    /**
+     * @type StoreManagerInterface
+     */
+    protected $store;
 
-	protected function _prepareLayout()
-	{
-	}
+    /**
+     * @var CustomerRepositoryInterface
+     */
+    protected $customerRepository;
 
-	public function getSliders()
-	{
-		$sliderId = $this->getBannerId();
-		$model = $this->sliderFactory->create()->load($sliderId);
-		if($model && $model->getStatus()==1){
-			$banners = $model->getSelectedBannersCollection()->addOrder('position','asc')->addFieldToFilter('status','1');
-			return $banners;
-		} else{
-			return null;
-		}
+    /**
+     * @var DateTime
+     */
+    protected $_date;
 
-	}
+    /**
+     * @var FilterProvider
+     */
+    public $filterProvider;
 
+    /**
+     * Slider constructor.
+     *
+     * @param Template\Context $context
+     * @param bannerHelper $helperData
+     * @param CustomerRepositoryInterface $customerRepository
+     * @param DateTime $dateTime
+     * @param FilterProvider $filterProvider
+     * @param array $data
+     */
+    public function __construct(
+        Template\Context $context,
+        bannerHelper $helperData,
+        CustomerRepositoryInterface $customerRepository,
+        DateTime $dateTime,
+        FilterProvider $filterProvider,
+        array $data = []
+    ) {
+        $this->helperData = $helperData;
+        $this->customerRepository = $customerRepository;
+        $this->store = $context->getStoreManager();
+        $this->_date = $dateTime;
+        $this->filterProvider = $filterProvider;
+
+        parent::__construct($context, $data);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function _construct()
+    {
+        parent::_construct();
+
+        $this->setTemplate('Mageplaza_BannerSlider::bannerslider.phtml');
+    }
+
+    /**
+     * Get Slider Id
+     * @return string
+     */
+    public function getSliderId()
+    {
+        if ($this->getSlider()) {
+            return $this->getSlider()->getSliderId();
+        }
+
+        return time();
+    }
+
+    /**
+     * @param $content
+     *
+     * @return string
+     * @throws Exception
+     */
+    public function getPageFilter($content)
+    {
+        return $this->filterProvider->getPageFilter()->filter($content);
+    }
+
+    /**
+     * @return array|AbstractCollection
+     */
+    public function getBannerCollection()
+    {
+        $collection = [];
+        if ($this->getSliderId()) {
+            $collection = $this->helperData->getBannerCollection($this->getSliderId())->addFieldToFilter('status', 1);
+        }
+
+        return $collection;
+    }
+
+    /**
+     * @return false|string
+     */
+    public function getBannerOptions()
+    {
+        return $this->helperData->getBannerOptions($this->getSlider());
+    }
 }

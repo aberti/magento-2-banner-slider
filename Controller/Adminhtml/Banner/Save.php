@@ -1,146 +1,148 @@
 <?php
 /**
- * Mageplaza_BetterSlider extension
- *                     NOTICE OF LICENSE
- * 
- *                     This source file is subject to the Mageplaza License
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
+ * Mageplaza
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Mageplaza.com license that is
+ * available through the world-wide-web at this URL:
  * https://www.mageplaza.com/LICENSE.txt
- * 
- *                     @category  Mageplaza
- *                     @package   Mageplaza_BetterSlider
- *                     @copyright Copyright (c) 2016
- *                     @license   https://www.mageplaza.com/LICENSE.txt
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade this extension to newer
+ * version in the future.
+ *
+ * @category    Mageplaza
+ * @package     Mageplaza_BannerSlider
+ * @copyright   Copyright (c) Mageplaza (https://www.mageplaza.com/)
+ * @license     https://www.mageplaza.com/LICENSE.txt
  */
-namespace Mageplaza\BetterSlider\Controller\Adminhtml\Banner;
 
-class Save extends \Mageplaza\BetterSlider\Controller\Adminhtml\Banner
+namespace Mageplaza\BannerSlider\Controller\Adminhtml\Banner;
+
+use Exception;
+use Magento\Backend\App\Action\Context;
+use Magento\Backend\Helper\Js;
+use Magento\Framework\App\ResponseInterface;
+use Magento\Framework\Controller\Result\Redirect;
+use Magento\Framework\Controller\ResultInterface;
+use Magento\Framework\Exception\FileSystemException;
+use Magento\Framework\Registry;
+use Mageplaza\BannerSlider\Controller\Adminhtml\Banner;
+use Mageplaza\BannerSlider\Helper\Image;
+use Mageplaza\BannerSlider\Model\BannerFactory;
+use RuntimeException;
+
+/**
+ * Class Save
+ * @package Mageplaza\BannerSlider\Controller\Adminhtml\Banner
+ */
+class Save extends Banner
 {
     /**
-     * Upload model
-     * 
-     * @var \Mageplaza\BetterSlider\Model\Upload
-     */
-    protected $uploadModel;
-
-    /**
-     * Image model
-     * 
-     * @var \Mageplaza\BetterSlider\Model\Banner\Image
-     */
-    protected $imageModel;
-
-    /**
      * JS helper
-     * 
-     * @var \Magento\Backend\Helper\Js
+     *
+     * @var Js
      */
-    protected $jsHelper;
+    public $jsHelper;
+    /**
+     * Image Helper
+     *
+     * @var Image
+     */
+    protected $imageHelper;
 
     /**
-     * constructor
-     * 
-     * @param \Mageplaza\BetterSlider\Model\Upload $uploadModel
-     * @param \Mageplaza\BetterSlider\Model\Banner\Image $imageModel
-     * @param \Magento\Backend\Helper\Js $jsHelper
-     * @param \Mageplaza\BetterSlider\Model\BannerFactory $bannerFactory
-     * @param \Magento\Framework\Registry $registry
-     * @param \Magento\Backend\App\Action\Context $context
+     * Save constructor.
+     *
+     * @param Image $imageHelper
+     * @param BannerFactory $bannerFactory
+     * @param Registry $registry
+     * @param Js $jsHelper
+     * @param Context $context
      */
     public function __construct(
-        \Mageplaza\BetterSlider\Model\Upload $uploadModel,
-        \Mageplaza\BetterSlider\Model\Banner\Image $imageModel,
-        \Magento\Backend\Helper\Js $jsHelper,
-        \Mageplaza\BetterSlider\Model\BannerFactory $bannerFactory,
-        \Magento\Framework\Registry $registry,
-        \Magento\Backend\App\Action\Context $context
-    )
-    {
-        $this->uploadModel    = $uploadModel;
-        $this->imageModel     = $imageModel;
-        $this->jsHelper       = $jsHelper;
+        Image $imageHelper,
+        BannerFactory $bannerFactory,
+        Registry $registry,
+        Js $jsHelper,
+        Context $context
+    ) {
+        $this->imageHelper = $imageHelper;
+        $this->jsHelper    = $jsHelper;
+
         parent::__construct($bannerFactory, $registry, $context);
     }
 
     /**
-     * run the action
-     *
-     * @return \Magento\Backend\Model\View\Result\Redirect
+     * @return ResponseInterface|Redirect|ResultInterface
+     * @throws FileSystemException
      */
     public function execute()
     {
-        $data = $this->getRequest()->getPost('banner');
         $resultRedirect = $this->resultRedirectFactory->create();
-        if ($data) {
-            $data = $this->filterData($data);
+
+        if ($this->getRequest()->getPost('banner')) {
+            $data   = $this->getRequest()->getPost('banner');
             $banner = $this->initBanner();
-            $banner->setData($data);
 
-            $uploadFile = $this->uploadModel->uploadFileAndGetName('upload_file', $this->imageModel->getBaseDir(), $data);
-
-            $banner->setUploadFile($uploadFile);
-            $sliders = $this->getRequest()->getPost('sliders', -1);
-            if ($sliders != -1) {
-                $banner->setSlidersData($this->jsHelper->decodeGridSerializedInput($sliders));
+            $this->imageHelper->uploadImage($data, 'image', Image::TEMPLATE_MEDIA_TYPE_BANNER, $banner->getImage());
+            $data['sliders_ids'] = (isset($data['sliders_ids']) && $data['sliders_ids'])
+                ? explode(',', $data['sliders_ids']) : [];
+            if ($this->getRequest()->getPost('sliders', false)) {
+                $banner->setTagsData(
+                    $this->jsHelper->decodeGridSerializedInput($this->getRequest()->getPost('sliders', false))
+                );
             }
+
+            $banner->addData($data);
+
             $this->_eventManager->dispatch(
-                'mageplaza_betterslider_banner_prepare_save',
+                'mpbannerslider_banner_prepare_save',
                 [
-                    'banner' => $banner,
+                    'banner'  => $banner,
                     'request' => $this->getRequest()
                 ]
             );
             try {
                 $banner->save();
                 $this->messageManager->addSuccess(__('The Banner has been saved.'));
-                $this->_session->setMageplazaBetterSliderBannerData(false);
+                $this->_session->setMageplazaBannerSliderBannerData(false);
                 if ($this->getRequest()->getParam('back')) {
                     $resultRedirect->setPath(
-                        'mageplaza_betterslider/*/edit',
+                        'mpbannerslider/*/edit',
                         [
                             'banner_id' => $banner->getId(),
-                            '_current' => true
+                            '_current'  => true
                         ]
                     );
+
                     return $resultRedirect;
                 }
-                $resultRedirect->setPath('mageplaza_betterslider/*/');
+                $resultRedirect->setPath('mpbannerslider/*/');
+
                 return $resultRedirect;
-            } catch (\Magento\Framework\Exception\LocalizedException $e) {
+            } catch (RuntimeException $e) {
                 $this->messageManager->addError($e->getMessage());
-            } catch (\RuntimeException $e) {
-                $this->messageManager->addError($e->getMessage());
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->messageManager->addException($e, __('Something went wrong while saving the Banner.'));
             }
-            $this->_getSession()->setMageplazaBetterSliderBannerData($data);
+
+            $this->_getSession()->setData('mageplaza_bannerSlider_banner_data', $data);
             $resultRedirect->setPath(
-                'mageplaza_betterslider/*/edit',
+                'mpbannerslider/*/edit',
                 [
                     'banner_id' => $banner->getId(),
-                    '_current' => true
+                    '_current'  => true
                 ]
             );
+
             return $resultRedirect;
         }
-        $resultRedirect->setPath('mageplaza_betterslider/*/');
-        return $resultRedirect;
-    }
 
-    /**
-     * filter values
-     *
-     * @param array $data
-     * @return array
-     */
-    protected function filterData($data)
-    {
-        if (isset($data['status'])) {
-            if (is_array($data['status'])) {
-                $data['status'] = implode(',', $data['status']);
-            }
-        }
-        return $data;
+        $resultRedirect->setPath('mpbannerslider/*/');
+
+        return $resultRedirect;
     }
 }

@@ -1,106 +1,168 @@
 <?php
 /**
- * Mageplaza_BetterSlider extension
- *                     NOTICE OF LICENSE
- * 
- *                     This source file is subject to the Mageplaza License
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
+ * Mageplaza
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Mageplaza.com license that is
+ * available through the world-wide-web at this URL:
  * https://www.mageplaza.com/LICENSE.txt
- * 
- *                     @category  Mageplaza
- *                     @package   Mageplaza_BetterSlider
- *                     @copyright Copyright (c) 2016
- *                     @license   https://www.mageplaza.com/LICENSE.txt
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade this extension to newer
+ * version in the future.
+ *
+ * @category    Mageplaza
+ * @package     Mageplaza_BannerSlider
+ * @copyright   Copyright (c) Mageplaza (https://www.mageplaza.com/)
+ * @license     https://www.mageplaza.com/LICENSE.txt
  */
-namespace Mageplaza\BetterSlider\Controller\Adminhtml\Slider;
 
-class Save extends \Mageplaza\BetterSlider\Controller\Adminhtml\Slider
+namespace Mageplaza\BannerSlider\Controller\Adminhtml\Slider;
+
+use Exception;
+use Magento\Backend\App\Action\Context;
+use Magento\Backend\Helper\Js;
+use Magento\Framework\App\ResponseInterface;
+use Magento\Framework\Controller\Result\Redirect;
+use Magento\Framework\Controller\ResultInterface;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Framework\Registry;
+use Magento\Framework\Stdlib\DateTime\Filter\Date;
+use Mageplaza\BannerSlider\Controller\Adminhtml\Slider;
+use Mageplaza\BannerSlider\Model\SliderFactory;
+use RuntimeException;
+use Zend_Filter_Input;
+
+/**
+ * Class Save
+ * @package Mageplaza\BannerSlider\Controller\Adminhtml\Slider
+ */
+class Save extends Slider
 {
-
     /**
      * JS helper
-     * 
-     * @var \Magento\Backend\Helper\Js
+     *
+     * @var Js
      */
     protected $jsHelper;
 
     /**
-     * constructor
-     * 
-     * @param \Magento\Backend\Helper\Js $jsHelper
-     * @param \Mageplaza\BetterSlider\Model\SliderFactory $sliderFactory
-     * @param \Magento\Framework\Registry $registry
-     * @param \Magento\Backend\App\Action\Context $context
+     * Date filter
+     *
+     * @var Date
+     */
+    protected $_dateFilter;
+
+    /**
+     * Save constructor.
+     *
+     * @param Js $jsHelper
+     * @param SliderFactory $sliderFactory
+     * @param Registry $registry
+     * @param Context $context
+     * @param Date $dateFilter
      */
     public function __construct(
-        \Magento\Backend\Helper\Js $jsHelper,
-        \Mageplaza\BetterSlider\Model\SliderFactory $sliderFactory,
-        \Magento\Framework\Registry $registry,
-        \Magento\Backend\App\Action\Context $context
-    )
-    {
-        $this->jsHelper       = $jsHelper;
+        Js $jsHelper,
+        SliderFactory $sliderFactory,
+        Registry $registry,
+        Context $context,
+        Date $dateFilter
+    ) {
+        $this->jsHelper = $jsHelper;
+        $this->_dateFilter = $dateFilter;
+
         parent::__construct($sliderFactory, $registry, $context);
     }
 
     /**
-     * run the action
-     *
-     * @return \Magento\Backend\Model\View\Result\Redirect
+     * @return ResponseInterface|Redirect|ResultInterface
      */
     public function execute()
     {
-        $data = $this->getRequest()->getPost('slider');
         $resultRedirect = $this->resultRedirectFactory->create();
-        if ($data) {
+
+        if ($this->getRequest()->getPost('slider')) {
+            $data = $this->_filterData($this->getRequest()->getPost('slider'));
             $slider = $this->initSlider();
-            $slider->setData($data);
+
             $banners = $this->getRequest()->getPost('banners', -1);
             if ($banners != -1) {
                 $slider->setBannersData($this->jsHelper->decodeGridSerializedInput($banners));
             }
+            $slider->addData($data);
+
             $this->_eventManager->dispatch(
-                'mageplaza_betterslider_slider_prepare_save',
+                'mpbannerslider_slider_prepare_save',
                 [
-                    'slider' => $slider,
+                    'slider'  => $slider,
                     'request' => $this->getRequest()
                 ]
             );
+
             try {
                 $slider->save();
                 $this->messageManager->addSuccess(__('The Slider has been saved.'));
-                $this->_session->setMageplazaBetterSliderSliderData(false);
+                $this->_session->setMageplazaBannerSliderSliderData(false);
                 if ($this->getRequest()->getParam('back')) {
                     $resultRedirect->setPath(
-                        'mageplaza_betterslider/*/edit',
+                        'mpbannerslider/*/edit',
                         [
                             'slider_id' => $slider->getId(),
-                            '_current' => true
+                            '_current'  => true
                         ]
                     );
+
                     return $resultRedirect;
                 }
-                $resultRedirect->setPath('mageplaza_betterslider/*/');
+                $resultRedirect->setPath('mpbannerslider/*/');
+
                 return $resultRedirect;
-            } catch (\Magento\Framework\Exception\LocalizedException $e) {
+            } catch (RuntimeException $e) {
                 $this->messageManager->addError($e->getMessage());
-            } catch (\RuntimeException $e) {
-                $this->messageManager->addError($e->getMessage());
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->messageManager->addException($e, __('Something went wrong while saving the Slider.'));
             }
-            $this->_getSession()->setMageplazaBetterSliderSliderData($data);
+
+            $this->_getSession()->setMageplazaBannerSliderSliderData($data);
             $resultRedirect->setPath(
-                'mageplaza_betterslider/*/edit',
+                'mpbannerslider/*/edit',
                 [
                     'slider_id' => $slider->getId(),
-                    '_current' => true
+                    '_current'  => true
                 ]
             );
+
             return $resultRedirect;
         }
-        $resultRedirect->setPath('mageplaza_betterslider/*/');
+
+        $resultRedirect->setPath('mpbannerslider/*/');
+
         return $resultRedirect;
+    }
+
+    /**
+     * filter values
+     *
+     * @param array $data
+     *
+     * @return array
+     */
+    protected function _filterData($data)
+    {
+        $inputFilter = new Zend_Filter_Input(['from_date' => $this->_dateFilter,], [], $data);
+        $data = $inputFilter->getUnescaped();
+
+        if (isset($data['responsive_items'])) {
+            unset($data['responsive_items']['__empty']);
+        }
+
+        if ($this->getRequest()->getParam('banners')) {
+            $data['banner_ids'] = $this->getRequest()->getParam('banners');
+        }
+
+        return $data;
     }
 }
