@@ -26,6 +26,7 @@ use Magento\Backend\Block\Template\Context;
 use Magento\Backend\Block\Widget\Form\Generic;
 use Magento\Backend\Block\Widget\Tab\TabInterface;
 use Magento\Config\Model\Config\Source\Enabledisable;
+use Magento\Config\Model\Config\Source\Yesno;
 use Magento\Customer\Api\GroupRepositoryInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Convert\DataObject;
@@ -77,6 +78,11 @@ class Slider extends Generic implements TabInterface
     protected $_objectConverter;
 
     /**
+     * @var Yesno
+     */
+    protected $_yesno;
+
+    /**
      * Slider constructor.
      *
      * @param Context $context
@@ -88,6 +94,7 @@ class Slider extends Generic implements TabInterface
      * @param SearchCriteriaBuilder $searchCriteriaBuilder
      * @param DataObject $objectConverter
      * @param Store $systemStore
+     * @param Yesno $yesno
      * @param array $data
      */
     public function __construct(
@@ -100,6 +107,7 @@ class Slider extends Generic implements TabInterface
         SearchCriteriaBuilder $searchCriteriaBuilder,
         DataObject $objectConverter,
         Store $systemStore,
+        Yesno $yesno,
         array $data = []
     ) {
         $this->statusOptions = $statusOptions;
@@ -108,6 +116,7 @@ class Slider extends Generic implements TabInterface
         $this->_searchCriteriaBuilder = $searchCriteriaBuilder;
         $this->_objectConverter = $objectConverter;
         $this->_systemStore = $systemStore;
+        $this->_yesno = $yesno;
 
         parent::__construct($context, $registry, $formFactory, $data);
     }
@@ -181,6 +190,13 @@ class Slider extends Generic implements TabInterface
             'title'  => __('Position'),
             'values' => $this->_location->toOptionArray(),
             'note'   => __('Select the position to display block.')
+        ]);
+
+        $fieldset->addField('ignore_location', 'select', [
+            'name'   => 'ignore_location',
+            'label'  => __('Ignore Position'),
+            'title'  => __('Ignore Position'),
+            'values' => $this->_yesno->toOptionArray()
         ]);
 
         $fieldset->addField('from_date', 'date', [
